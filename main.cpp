@@ -1,5 +1,6 @@
 // KLR-5A [Klarissa], 5-axis 3d-printed Robot Arm Controller
 // ©2023 Iniq Myers
+// Released under GPLv3
 // Controller Hardware: Teensy 4.1
 // Closed-loop Motor Controllers:
 //    Axis1,2,3 - SKR Servo042C V1.1.1  (Step+Dir and UART) [Nema 17 2.0A]
