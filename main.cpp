@@ -364,7 +364,7 @@ void setup()
   estop = false; //Allow robot motion
   mstop = true;  //Force ManualControl
   Serial.begin(115200); //Begin USB serial for debugging
-  Serial.print("Homing Joystick, Leave Center...");
+  Serial.print("Homing Joystick, Leave Centered...");
   setupIO(); // Set pins to Input/Output modes and zero joystick axes
   Serial.print("...");
   setupMotors(); //Enable outputs, begin TS4 and set speeds
@@ -373,7 +373,7 @@ void setup()
   targetPosition = 700; //Set target position for PID axis control
   setpoint3 = targetPosition;
 
-    a3PID.begin(&input3,                // input
+  a3PID.begin(&input3,                // input
               &output3,               // current output
               &setpoint3,             // setpoint
               Kp3,Ki3,Kd3          );   // P,I,D
@@ -381,13 +381,13 @@ void setup()
   a3PID.start();
   a3PID.setOutputLimits(-1,1);
 
-  /*a4PID.begin(&input4,                // input
+  a4PID.begin(&input4,                // input
               &output4,               // current output
               &setpoint4,             // setpoint
               Kp4,Ki4,Kd4          );   // P,I,D
   a4PID.setSampleTime(25);
   a4PID.start();
-  a4PID.setOutputLimits(-1,1);*/
+  a4PID.setOutputLimits(-1,1);
 }
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> LOOP (Run repeatedly after Setup) >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -408,7 +408,7 @@ void loop()
 
   if(!estop&&!mstop){
     a3PID.compute();
-  //  a4PID.compute();
+    a4PID.compute();
 
     if(abs(output3)>0){
       axis3.rotateAsync(maximumSpeed);
@@ -418,7 +418,6 @@ void loop()
         axis3.stop();
         Serial.print(" Target Reached: ");
         Serial.println(input3);
-        delay(1000);
         if(input3==setpoint3){
           int newTarget = random(220,511);
           while(abs(newTarget-setpoint3)<10){
@@ -427,6 +426,27 @@ void loop()
           setpoint3 = newTarget;
           Serial.print(" New Target: ");
           Serial.print(setpoint3);
+        }
+      }
+      
+    }
+
+    if(abs(output4)>0){
+      axis4.rotateAsync(maximumSpeed);
+      axis4.overrideSpeed(-output4);
+    }else{
+      if(input3==setpoint3){
+        axis4.stop();
+        Serial.print(" Target Reached: ");
+        Serial.println(input4);
+        if(input4==setpoint4){
+          int newTarget = random(220,511);
+          while(abs(newTarget-setpoint4)<10){
+            newTarget = random(220,511);
+          }
+          setpoint3 = newTarget;
+          Serial.print(" New Target: ");
+          Serial.print(setpoint4);
         }
       }
       
