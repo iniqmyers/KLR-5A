@@ -20,7 +20,7 @@
 #include <Bounce2.h>      // Library for debouncing inputs
 #include "ArduPID.h"      // Library for PID motor control
 #include "teensystep4.h"  // Library for fast, asynchronous stepper motor control on Teensy4
-#include "RobotAxis.h"
+//#include "RobotAxis.h"
 using namespace TS4;      // Namespace for TeensyStep4
 
 // $$$$$$$$$$$ function prototypes
@@ -80,7 +80,7 @@ JoyStick joystick(21,22,23,20);
 // ************************** Variable Declarations *******************************
 double input,output,setpoint;
 
-uint16_t maximumSpeed = 9000;         // Maximum motor speed      (STP+DIR)
+uint16_t maximumSpeed = 6000;         // Maximum motor speed      (STP+DIR)
 uint16_t acceleration = 25000;        // Motor Acceleration       (STP+DIR)
 uint16_t speed = 5000;                // Motor Speed              (STP+DIR)
 
@@ -288,7 +288,7 @@ void loop()
 
   if(!estop&&!mstop){
     a3PID.compute();
-    a4PID.compute();
+    //a4PID.compute();
 
     if(abs(output3)>0){
       axis3.rotateAsync(maximumSpeed);
@@ -296,16 +296,14 @@ void loop()
     }else{
       if(input3==setpoint3){
         axis3.stop();
-        Serial.print(" Target Reached: ");
-        Serial.println(input3);
+        Serial.print(((input3/1023.0)*360)-180);
+        Serial.println(" Degrees");
         if(input3==setpoint3){
           int newTarget = random(220,511);
           while(abs(newTarget-setpoint3)<10){
             newTarget = random(220,511);
           }
           setpoint3 = newTarget;
-          Serial.print(" New Target: ");
-          Serial.print(setpoint3);
         }
       }
       
@@ -315,18 +313,19 @@ void loop()
       axis4.rotateAsync(maximumSpeed);
       axis4.overrideSpeed(-output4);
     }else{
-      if(input3==setpoint3){
+      if(input4==setpoint4){
         axis4.stop();
         Serial.print(" Target Reached: ");
-        Serial.println(input4);
+        Serial.println(((input4/1023.0)*360)-180);
         if(input4==setpoint4){
           int newTarget = random(220,511);
           while(abs(newTarget-setpoint4)<10){
             newTarget = random(220,511);
           }
-          setpoint3 = newTarget;
+          setpoint4 = newTarget;
           Serial.print(" New Target: ");
           Serial.print(setpoint4);
+          Serial.print("...");
         }
       }
       
