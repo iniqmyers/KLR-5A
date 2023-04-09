@@ -20,6 +20,7 @@
 #include <Bounce2.h>      // Library for debouncing inputs
 #include "ArduPID.h"      // Library for PID motor control
 #include "teensystep4.h"  // Library for fast, asynchronous stepper motor control on Teensy4
+#include "RobotAxis.h"
 using namespace TS4;      // Namespace for TeensyStep4
 
 // $$$$$$$$$$$ function prototypes
@@ -233,128 +234,7 @@ uint16_t updatePosition(uint8_t axis){
 }
 
 void a3homingTest(){
-  uint16_t top,bot,hom1,hom2,hom3;
-  Serial.println("homing test begun");
   
-  Serial.println("Check Nearest Endstop");
-  a3h.update(); //Process debounce on axis3Home
-  a3s.update(); //Process debounce on axis3End
- // updatePositions();//Update position encoders
-  if(updatePosition(3)>512){ //If it's on the top side of home
-    Serial.println("Top Switch First");
-    Serial.println(rawPos[2]);
-    axis3.rotateAsync(-homingRotationSpeed); //Rotate upwards at the homing speed
-    while(!a3s.fell()){ //While the endstop hasn't triggered
-      a3s.update(); //Update bounce input
-    }
-    axis3.stop(); //Stop when endstop reached
-    delayMicroseconds(100); //let inputs and motors settle 100us
-    updatePositions(); //Update encoders
-    Serial.print("Top Switch Position: ");
-    top = rawPos[2]; //Store top position
-    Serial.println(top);
-
-    Serial.println("Home Topside Next");
-    a3h.update(); //Process home switch debounce
-    axis3.rotateAsync(homingRotationSpeed); //Rotate downwards at homing speed
-    while(!a3h.read()){ //While the homing switch hasn't triggered
-      a3h.update(); //Update bounce input
-    }
-    hom2 = updatePosition(3); // Record encoder position for home range top
-    //updatePositions(); //When triggered, read encoder value
-    Serial.print("Homing Top: ");
-    Serial.println(hom2);
-
-    axis3.rotateAsync(homingRotationSpeed); //re-assert rotation in the downwards direction
-    while(a3h.read()){//While homing switch is still triggered
-      a3h.update(); //Update the bounce input
-    }
-    hom3 = updatePosition(3); //When home switch untriggers, record encoder position
-    Serial.print("Homing Bottom(a):");
-    Serial.println(hom3);
-    delayMicroseconds(100);
-    a3s.update();
-    Serial.println("Bottom Switch Next");
-    axis3.rotateAsync(homingRotationSpeed); //re-assert downward rotation at homing speed
-    while(!a3s.fell()){ //while the endstop hasn't triggered
-      a3s.update(); //Update bounce processor
-    }
-    axis3.stop(); //When triggered, stop motors
-    bot = updatePosition(3);
-    Serial.print("Bottom Switch: ");
-    Serial.println(bot);
-
-    Serial.println("Home Verification/Return Last");
-    axis3.rotateAsync(-homingRotationSpeed); //Begin rotation in upwards direction at homing speed
-    while(!a3h.read()){ //While the homing switch is not active
-      a3h.update(); //Update bounce processor
-    }
-    axis3.stop(); //When triggered, stop and record encoder value
-    hom1 =(updatePosition(3)+hom3)/2;
-    Serial.print("Home Bottom(b)");
-    Serial.println(rawPos[2]);
-    hom1 = (rawPos[2]+hom3)/2; //Set home range bottom
-    hom3 = (hom1+hom2)/2; //Set home range middle
-    
-
-    Serial.println("Homing Test Complete");
-    updatePositions();
-    axis3.rotateAsync(-homingRotationSpeed/10); //Continue upward rotation at homingSpeed/10
-    while(updatePosition(3)<hom3){ //Wait until encoder position is at least "home middle"
-    //Wait
-    }
-    axis3.stop(); //Stop motor
-    axis3.setPosition(0); //Set TeensyStep motor position to 0 (Also sets speed to 0)
-
-    // ----------------End of Topside Test---------------
-
-  }else{
-    Serial.println("Bottom Switch First");
-    axis3.rotateAsync(homingRotationSpeed); // Rotate in downward direction at homing speed
-    a3s.update(); //Process debounce on a3Endstop
-    while(!a3s.fell()||a3s.read()!=0){ //while endstop not triggered or held down
-      a3s.update(); // update debounce processor
-    }
-    axis3.stop(); // When triggered or held down, stop motor motion
-    updatePositions();
-    Serial.print("Bottom Switch Position: ");
-    Serial.println(rawPos[2]);
-  }
-
-  // -------------- End of Bottomside Test ------------------
-
-  //Verify home/encoder matched
-  while(!a3h.read()){ //While homing sensor is not flagged...
-    updatePositions();
-    if(a3s.read()){ //Check if endstop flagged
-      axis3.stop(); // STOP! (We should be rotating towards home!)
-      if(rawPos[2]>512){ // Check Position and begin rotating away from stops
-        axis3.rotateAsync(homingRotationSpeed);
-      }else{
-        axis3.rotateAsync(-homingRotationSpeed);
-      }
-    }else{ // Endstop not flagged
-     if(rawPos[2]>512){ //Rotate towards home
-        axis3.rotateAsync(homingRotationSpeed);
-      }else{
-        axis3.rotateAsync(-homingRotationSpeed);
-      }
-    }
-    a3s.update();
-    a3h.update();
-  }
-  updatePositions();
-  int a3nicePos = map (rawPos[2],0,1023,-180,180); //map analog input to axis degrees
-  if(a3nicePos<-4 || a3nicePos>8){ //did the sensor flag outside the accepted range?
-    Serial.println("Encoder/Homing Switch Mismatch! Check Alignment.");
-    Serial.println(rawPos[2]);
-    axis4.overrideSpeed(0.0);
-  }else{ //Homing switch and encoder agree, test complete
-    Serial.println("Basic Homing Test Complete");
-    Serial.println(a3nicePos); //Usually homes at -2
-    axis4.overrideSpeed(0.0);
-  }
-
 }
 
 
@@ -497,7 +377,6 @@ void loop()
       //axis5.overrideSpeed(0.0);
     }
   }
-
   
   
   
