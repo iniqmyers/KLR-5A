@@ -34,7 +34,6 @@ class JoyStick{
     uint16_t getPosition(axis direction);       
     void getXYZ(uint16_t &x, uint16_t &y, uint16_t &z);
     void setHome();
-    uint16_t gethome(axis direction);
     void rotate(axis direction, Stepper& myMotor, uint16_t speed);    //use an enumerated type for direction
 };//end of Joystick class
 
@@ -65,7 +64,7 @@ void JoyStick::setHome(){
     home[i] = getPosition(direction++);
 } //end of setHome
 
-uint16_t JoyStick::gethome(axis direction){
+uint16_t JoyStick::getHome(axis direction){
   return home[direction];
 }
 
