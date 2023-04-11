@@ -1,7 +1,9 @@
+#pragma once
 #include "Arduino.h"   
 #include <Bounce2.h>      // Library for debouncing inputs 
 #include "teensystep4.h"  // Library for fast, asynchronous stepper motor control on Teensy4
 //using namespace TS4;      // Namespace for TeensyStep4
+#include "ArduPID.h"
 namespace TS4{
     class RobotAxis{
       private:
@@ -104,9 +106,15 @@ namespace TS4{
           homingSpeed = 5000;
           maximumSpeed = 8000;
           motor = Stepper(stpPin, dirPin);
+          motor.setMaxSpeed(maximumSpeed);
+          motor.setAcceleration(25000);
         // TS4::begin(); //Begin TeensyStep4 Service
           homeSensor = Bounce();
+          homeSensor.attach(homingPin,INPUT);
+          homeSensor.interval(25);
           endStop = Bounce();
+          endStop.attach(endstopPin,INPUT_PULLUP);
+          endStop.interval(25);
           calibrated = false;
           moving = false;
           fault = true;
@@ -350,7 +358,9 @@ namespace TS4{
 
     void RobotAxis::disable(){
       enabled = false;
-      motor.stop();
+      //Serial.println("DisablingAxis");
+      motor.overrideSpeed(0.0);
+      return;
     }
 
     void RobotAxis::enable(){
@@ -375,7 +385,7 @@ namespace TS4{
       motor.rotateAsync(speed);
       motor.overrideSpeed(override); //Scale motor to axis 
     }
-    void RobotAxis::tick(){
+    /*void RobotAxis::tick(){
       updatePosition();
       positionController.compute();
 
@@ -396,8 +406,8 @@ namespace TS4{
         }
       }
       
-    }
+      }
 
-    }
+    }*/
 }
 
