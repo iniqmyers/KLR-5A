@@ -1,7 +1,10 @@
+//#pragma once
 #include "teensystep4.h"  // Library for fast, asynchronous stepper motor control on Teensy4
 using namespace TS4;      // Namespace for TeensyStep4
 #include "Arduino.h"   
 #include <Bounce2.h>      // Library for debouncing inputs
+#include "RobotAxis.h"
+//#include "ArduPID.h"
 
 enum axis {X,Y,Z};
 axis& operator++(axis& orig) {  //pre increment operator
@@ -34,7 +37,7 @@ class JoyStick{
     uint16_t getPosition(axis direction);       
     void getXYZ(uint16_t &x, uint16_t &y, uint16_t &z);
     void setHome();
-    void rotate(axis direction, Stepper& myMotor, uint16_t speed);    //use an enumerated type for direction
+    void rotate(axis direction, RobotAxis& robAxis, uint16_t speed);    //use an enumerated type for direction
 };//end of Joystick class
 
 JoyStick::JoyStick(int pinX, int pinY, int pinZ, int buttonPin) {
@@ -77,7 +80,7 @@ uint16_t JoyStick::getPosition(axis direction){
 return 0;  //this would be an error
 }
 
-void JoyStick::rotate(axis direction, Stepper& myMotor, uint16_t speed){
+void JoyStick::rotate(axis direction, RobotAxis& robAxis, uint16_t speed){
   int position=0;
   uint16_t currentHome=0;
 
@@ -90,13 +93,17 @@ void JoyStick::rotate(axis direction, Stepper& myMotor, uint16_t speed){
                         currentHome = home[2]; break;                                       
   }
       if(abs(position-currentHome)>Deadzone){ //Is movement greater than deadzone?
-        myMotor.rotateAsync(speed);
         if(position<currentHome){//Stick Pushed Right, Rotate Right
-          myMotor.overrideSpeed(-(position-currentHome)/512.0); //Scale motor to axis 
+          robAxis.enable();
+          robAxis.rotate(speed,-(position-currentHome)/512.0);
+          //myMotor.overrideSpeed(-(position-currentHome)/512.0); //Scale motor to axis 
         }else{//Stick Pushed Left, Rotate Left
-          myMotor.overrideSpeed(((currentHome-position)/512.0));
+          robAxis.enable();
+          robAxis.rotate(speed,(currentHome-position)/512.0);
+         // myMotor.overrideSpeed(((currentHome-position)/512.0));
         }
       }else{ //Not outside deadzone
-          myMotor.overrideSpeed(0.0); //Set speed 0
+         robAxis.disable();
+         // myMotor.overrideSpeed(0.0); //Set speed 0
       }
 }
