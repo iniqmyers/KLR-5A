@@ -22,6 +22,9 @@ class JoyStick{
     int teachPendantPinY;
     int teachPendantPinZ;
     int buttonTeachPendantPin;
+    bool xInvert;
+    bool yInvert;
+    bool zInvert;
     //uint16_t Xpos;             // For reading/calculating Joystick X input [0-1023]
                               // ****** shouldn't need, call getPosition() when needed
     uint16_t home[3];            // Home value for zeroing Joystick input [0-1023]
@@ -37,6 +40,9 @@ class JoyStick{
     uint16_t getPosition(axis direction);       
     void getXYZ(uint16_t &x, uint16_t &y, uint16_t &z);
     void setHome();
+    bool invertX();
+    bool invertY();
+    bool invertZ();
     void rotate(axis direction, RobotAxis& robAxis, uint16_t speed);    //use an enumerated type for direction
 };//end of Joystick class
 
@@ -71,6 +77,19 @@ uint16_t JoyStick::getHome(axis direction){
   return home[direction];
 }
 
+bool JoyStick::invertX(){
+  xInvert = !xInvert;
+  return xInvert;
+}
+bool JoyStick::invertY(){
+  yInvert = !yInvert;
+  return yInvert;
+}
+bool JoyStick::invertZ(){
+  zInvert = !zInvert;
+  return zInvert;
+}
+
 uint16_t JoyStick::getPosition(axis direction){
   switch(direction){
     case X: return analogRead(teachPendantPinX); break;
@@ -83,25 +102,31 @@ return 0;  //this would be an error
 void JoyStick::rotate(axis direction, RobotAxis& robAxis, uint16_t speed){
   int position=0;
   uint16_t currentHome=0;
-
+  bool invert=false;
   switch(direction){
+
     case X: position = getPosition(axis::X); 
-                        currentHome = home[0]; break;
+                        currentHome = home[0];
+                        invert = xInvert; break;
     case Y: position = getPosition(axis::Y); 
-                        currentHome = home[1]; break;
+                        currentHome = home[1];
+                        invert = yInvert; break;
     case Z: position = getPosition(axis::Z); 
-                        currentHome = home[2]; break;                                       
+                        currentHome = home[2];
+                        invert = zInvert; break;                                       
   }
       if(abs(position-currentHome)>Deadzone){ //Is movement greater than deadzone?
+        double offsetVal;
         if(position<currentHome){//Stick Pushed Right, Rotate Right
-          robAxis.enable();
-          robAxis.rotate(speed,-(position-currentHome)/512.0);
-          //myMotor.overrideSpeed(-(position-currentHome)/512.0); //Scale motor to axis 
+          offsetVal = -(position-currentHome)/512.0;
         }else{//Stick Pushed Left, Rotate Left
-          robAxis.enable();
-          robAxis.rotate(speed,(currentHome-position)/512.0);
-         // myMotor.overrideSpeed(((currentHome-position)/512.0));
+          offsetVal =(currentHome-position)/512.0;
         }
+        if(invert){
+            offsetVal = offsetVal * -1;
+        }
+        robAxis.enable();
+        robAxis.rotate(speed,offsetVal);
       }else{ //Not outside deadzone
          robAxis.disable();
          // myMotor.overrideSpeed(0.0); //Set speed 0
