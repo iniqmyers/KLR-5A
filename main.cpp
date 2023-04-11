@@ -78,7 +78,6 @@ JoyStick joystick(21,22,23,20);
 
 
 // ************************** Variable Declarations *******************************
-double input,output,setpoint;
 
 uint16_t maximumSpeed = 6000;         // Maximum motor speed      (STP+DIR)
 uint16_t acceleration = 25000;        // Motor Acceleration       (STP+DIR)
@@ -99,83 +98,21 @@ volatile bool a4home=false;           // The current home switch status of Axis 
 volatile bool estop = true;
 bool mstop = true;
 
-double input3,output3,setpoint3=512;
+//double input3,output3,setpoint3=512;
 double input4,output4,setpoint4=512;
 double Kp3 =0.022, Ki3 = 0, Kd3 = .0001; // Define PID tuning values
 double Kp4 =.01, Ki4 = 0.0, Kd4 = 0; // Define PID tuning values
-ArduPID a3PID; // Define PID Object
+//ArduPID a3PID; // Define PID Object
 ArduPID a4PID;
 int targetPosition; // Define target position for PID controller
 
 // %%%%%%%%%%%%%%%%%%%%%% Stepper Motor Declarations %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 //Stepper axis1(AXIS1STP, AXIS1DIR); // Define stepper motor with Step and Direction pins
 Stepper axis2(AXIS2STP, AXIS2DIR); // Define stepper motor with Step and Direction pins
-//Stepper axis3(AXIS3STP, AXIS3DIR);  // Define stepper motor with Step and Direction pins
 Stepper axis4(AXIS4STP, AXIS4DIR);  // Define stepper motor with Step and Direction pins
 //Stepper axis5(AXIS5STP, AXIS5DIR);  // Define stepper motor with Step and Direction pins
 RobotAxis axisThree(AXIS3ENC,AXIS3END,AXIS3HOM,AXIS3EN,AXIS3DIR,AXIS3STP,0,1,Kp3,Ki3,Kd3);
-//RobotAxis axisThree(AXIS3EN,AXIS3END,AXIS3HOM,AXIS3EN,AXIS3DIR,AXIS3STP,1,0,Kp3,Ki3,Kd3);
 // ()()()() Other Declarations ()()()()
-//Bounce a3h = Bounce(); // Define debounce object for axis3Home
-//Bounce a3s = Bounce(); // Define debounce object for axis3End 
-
-void a3end_ISR(){ //Axis 3 HomeSwitch On Interrupt
-  static unsigned long last_interrupt_time = 0;
-  unsigned long interrupt_time = millis();
-  if(!a3end){
-    if(interrupt_time - last_interrupt_time >5000){
-        a3end = true;
-    }
-    last_interrupt_time = interrupt_time;
-  }
-}
-
-void axis4Home(){ // Depreciated Homing Process (needs to be reworked to be axis-agnostic)
-  //Rotate Clockwise until Homing Switch is Engaged
-  while(!digitalRead(AXIS4HOM)){
-    axis4.rotateAsync(homingRotationSpeed);
-  }
-  //Back off of switch at 1/4 speed
-  while(digitalRead(AXIS4HOM)){
-    axis4.rotateAsync(-(homingRotationSpeed/4));
-  }
-  delay(500);
-  //Re-engage switch at 1/4 speed
-  while(!digitalRead(AXIS4HOM)){
-    axis4.rotateAsync(homingRotationSpeed/4);
-  }
-  //Set new home position to homing switch
-  axis4.setPosition(0.0);
-  //delay(1000);
-
-  //Move off switch in the negative direction
-  while(digitalRead(AXIS4HOM)){
-    axis4.rotateAsync(-homingRotationSpeed);
-  }
-  delay(100);
-  while(!digitalRead(AXIS4HOM)){
-    axis4.rotateAsync(-homingRotationSpeed);
-  }
-
-  //Back off of switch at 1/4 speed
-  while(digitalRead(AXIS4HOM)){
-    axis4.rotateAsync((homingRotationSpeed/4));
-  }
-  delay(100);
-  //Re-engage switch at 1/4 speed
-  while(!digitalRead(AXIS4HOM)){
-    axis4.rotateAsync(-(homingRotationSpeed/4));
-  }
-  homingRange = axis4.getPosition();
-  
-  while(axis4.getPosition()<=(homingRange/2.0)){
-    axis4.rotateAsync(homingRotationSpeed);
-    delayMicroseconds(15);
-  }
-  axis4.setPosition(0);
-  homingTop = homingRange/2;
-  homingBottom = -(homingRange/2);
-}
 
 void setupIO(){ // Setup pin modes for I/O
   joystick.setPinModes();  
@@ -190,12 +127,7 @@ void setupIO(){ // Setup pin modes for I/O
   pinMode(AXIS3EN,OUTPUT);        // Axis 3 Enable (Step + Direction set by TS4)
   pinMode(AXIS4EN,OUTPUT);        // Axis 4 Enable (Step + Direction set by TS4)
  // pinMode(AXIS5EN,OUTPUT);       // Axis 5 Enable
-/*$$$$$$$ Should be taken care of internally by RobotAxis object
- a3h.attach ( AXIS3HOM , INPUT ); // Attach debounce object to Axis3Hom
-  a3h.interval(10); // Define debounce interval (ms)
-  a3s.attach(AXIS3END,INPUT_PULLUP); //Attach debounce object to Axis3End
-  a3s.interval(30); // Define debounce interval(ms)
-*/
+
   // Record Zero Position for all joystick axes to calculate offsets 
   joystick.setHome();  
   }
@@ -212,12 +144,8 @@ void setupMotors(){ // Enable motor outputs, begin TS4 service and set motor spe
   TS4::begin(); //Begin TeensyStep4 Service
 
   // Set Motor Speeds and acceleration
- // axis1.setMaxSpeed(maximumSpeed);
- // axis1.setAcceleration(acceleration);
   axis2.setMaxSpeed(maximumSpeed);
   axis2.setAcceleration(acceleration);
-  //axis3.setMaxSpeed(maximumSpeed);  //$$$$$$$$$Should be taken care of by axis object
-  //axis3.setAcceleration(acceleration);
   axis4.setMaxSpeed(maximumSpeed);
   axis4.setAcceleration(acceleration);
 
@@ -290,9 +218,8 @@ void loop()
   }
 
   if(!estop&&!mstop){
-    a3PID.compute();
     axisThree.tick();
-    //a4PID.compute();
+    a4PID.compute();
 
    
     if(abs(output4)>0){
