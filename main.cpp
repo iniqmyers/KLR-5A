@@ -27,9 +27,12 @@ using namespace TS4;      // Namespace for TeensyStep4
 void setupIO(); // Set pins to Input/Output modes and zero joystick axes
 void setupMotors(); //Enable outputs, begin TS4 and set speeds
 
-JoyStick joystick(21,22,23,20);
-
 // ################# Constant Declarations ########################
+#define JOYXPIN 21
+#define JOYYPIN 22
+#define JOYZPIN 23
+#define JOYBUT 20
+
 // Motor Driver I/O Pins
 /*
 #define AXIS1EN  XX // Axis1 - Motor Enable (Low Active)
@@ -79,6 +82,7 @@ JoyStick joystick(21,22,23,20);
 
 // ************************** Variable Declarations *******************************
 
+
 uint16_t maximumSpeed = 6000;         // Maximum motor speed      (STP+DIR)
 uint16_t acceleration = 25000;        // Motor Acceleration       (STP+DIR)
 uint16_t speed = 9000;                // Motor Speed              (STP+DIR)
@@ -92,26 +96,22 @@ uint16_t  rawPos[5];                  // Axis3 Raw analog encoder position
 bool      a3end = false;              // Axis3 endstop state
 uint8_t   encoderPins[5];             // Array of analog pins for updating encoder values
 
-volatile bool a3home=false;           // The current home switch status of Axis 3
-volatile bool a4home=false;           // The current home switch status of Axis 4
-
 volatile bool estop = true;
 bool mstop = true;
-
-//double input3,output3,setpoint3=512;
-double input4,output4,setpoint4=512;
+double Kp2 =0.022, Ki2 = 0, Kd2 = .0001; // Define PID tuning values
 double Kp3 =0.022, Ki3 = 0, Kd3 = .0001; // Define PID tuning values
-double Kp4 =.01, Ki4 = 0.0, Kd4 = 0; // Define PID tuning values
-//ArduPID a3PID; // Define PID Object
-ArduPID a4PID;
+double Kp4 = 0,Ki4=0,Kd4=0;
 int targetPosition; // Define target position for PID controller
 
 // %%%%%%%%%%%%%%%%%%%%%% Stepper Motor Declarations %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 //Stepper axis1(AXIS1STP, AXIS1DIR); // Define stepper motor with Step and Direction pins
-Stepper axis2(AXIS2STP, AXIS2DIR); // Define stepper motor with Step and Direction pins
-Stepper axis4(AXIS4STP, AXIS4DIR);  // Define stepper motor with Step and Direction pins
+//Stepper axis2(AXIS2STP, AXIS2DIR); // Define stepper motor with Step and Direction pins
+//Stepper axis4(AXIS4STP, AXIS4DIR);  // Define stepper motor with Step and Direction pins
 //Stepper axis5(AXIS5STP, AXIS5DIR);  // Define stepper motor with Step and Direction pins
-RobotAxis axisThree(AXIS3ENC,AXIS3END,AXIS3HOM,AXIS3EN,AXIS3DIR,AXIS3STP,0,1,Kp3,Ki3,Kd3);
+RobotAxis axisThree(AXIS3ENC,AXIS3END,AXIS3HOM,AXIS3EN,AXIS3DIR,AXIS3STP,34,35,Kp3,Ki3,Kd3);
+RobotAxis axisTwo(AXIS2ENC,AXIS2HOM,AXIS2HOM,AXIS2EN,AXIS2DIR,AXIS2STP,34,35,Kp2,Ki2,Kd2);
+RobotAxis axisFour(AXIS4ENC,AXIS4HOM,AXIS4HOM,AXIS4EN,AXIS4DIR,AXIS4STP,34,35,Kp4,Ki4,Kd4);
+JoyStick joystick(JOYXPIN,JOYYPIN,JOYZPIN,JOYBUT);
 // ()()()() Other Declarations ()()()()
 
 void setupIO(){ // Setup pin modes for I/O
@@ -140,14 +140,7 @@ void setupMotors(){ // Enable motor outputs, begin TS4 service and set motor spe
   digitalWrite(AXIS3EN,LOW); //Low Active, enable axis3 motor motion
   digitalWrite(AXIS4EN,LOW); //Low Active, enable axis4 motor motion
   //digitalWrite(AXIS5EN,LOW); // enable axis5 motor motion
-
   TS4::begin(); //Begin TeensyStep4 Service
-
-  // Set Motor Speeds and acceleration
-  axis2.setMaxSpeed(maximumSpeed);
-  axis2.setAcceleration(acceleration);
-  axis4.setMaxSpeed(maximumSpeed);
-  axis4.setAcceleration(acceleration);
 
 }
 
@@ -163,52 +156,32 @@ uint16_t updatePosition(uint8_t axis){
   return rawPos[axis-1];
 }
 
-void a3homingTest(){
-  
-}
 
 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<   SETUP (Run Once at Startup)  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 void setup()
 {
   estop = false; //Allow robot motion
-  mstop = true;  //Force ManualControl
+ // mstop = true;  //Force ManualControl
   Serial.begin(115200); //Begin USB serial for debugging
+  Serial.println("Start");
   Serial.print("Homing Joystick, Leave Centered...");
   setupIO(); // Set pins to Input/Output modes and zero joystick axes
   Serial.print("...");
   setupMotors(); //Enable outputs, begin TS4 and set speeds
-  Serial.print("done.");
-  //a3homingTest(); //Home axis3, verify homing switch, endstops and magnetic position encoder
+  Serial.println("done.");
   targetPosition = 700; //Set target position for PID axis control
-  /* $$$$$$$$$$$ Will be handled internal to the axis object
-  setpoint3 = targetPosition;
-
-  a3PID.begin(&input3,                // input
-              &output3,               // current output
-              &setpoint3,             // setpoint
-              Kp3,Ki3,Kd3          );   // P,I,D
-  a3PID.setSampleTime(25);
-  a3PID.start();
-  a3PID.setOutputLimits(-1,1);
-  */
-
-  a4PID.begin(&input4,                // input
-              &output4,               // current output
-              &setpoint4,             // setpoint
-              Kp4,Ki4,Kd4          );   // P,I,D
-  a4PID.setSampleTime(25);
-  a4PID.start();
-  a4PID.setOutputLimits(-1,1);
+  joystick.invertY();
 }
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> LOOP (Run repeatedly after Setup) >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 void loop()
 {
-  // @#@#@#@#@#@#@#@#@# Safety Checks @#@#@#@#@#@#@#@#@#@#@#
   axisThree.endStop.update();
-  if(axisThree.endStop.fell()){
+  //Serial.println("Next");
+  if(!axisThree.endStop.read()){
     axisThree.disable();
+    //Serial.println("Disabled");
     mstop = true;
     Serial.println("Endstop Limit Switch Activated! Stopping Motors");
     Serial.println("Recover Robot Manually (DO NOT CRASH!)");
@@ -216,89 +189,18 @@ void loop()
       Serial.println("Encoder/Endstop Position Mismatch! Check Alignment");
     }
   }
-
   if(!estop&&!mstop){
-    axisThree.tick();
-    a4PID.compute();
-
-   
-    if(abs(output4)>0){
-      axis4.rotateAsync(maximumSpeed);
-      axis4.overrideSpeed(-output4);
-    }else{
-      if(input4==setpoint4){
-        axis4.stop();
-        Serial.print(" Target Reached: ");
-        Serial.println(((input4/1023.0)*360)-180);
-        if(input4==setpoint4){
-          int newTarget = random(220,511);
-          while(abs(newTarget-setpoint4)<10){
-            newTarget = random(220,511);
-          }
-          setpoint4 = newTarget;
-          Serial.print(" New Target: ");
-          Serial.print(setpoint4);
-          Serial.print("...");
-        }
-      }
-      
-    }
-
-    
+    Serial.println("Free");
+    //axisThree.tick();
   }else{
-    //*************** Manual Control Mode ********************
-    updatePositions();
-   // int a3nicePos = map (rawPos[2],0,1023,-180,180); //Map raw encoder to degrees
-    // *#*#*#*#*#*#*#*#*#*#*#*#*# Safety Checks *#*#*#*#*#*#*#*#*#*#*#*#
-    axisThree.endStop.update(); //update endstop bounce
-    if(axisThree.endStop.fell()){ //if endstop triggered
-      axisThree.disable();
-      //estop = false;
-      mstop = true;
-      Serial.println("Endstop Limit Switch Activated! Stopping Motors");
-      if(axisThree.getPosition()>-106 || axisThree.getPosition()<103){ //Is the encoder outside an expected endstop zone?
-        Serial.println("Encoder/Endstop Position Mismatch! Check Alignment");
-      }
-    }
-    axisThree.homeSensor.update(); //update home switch bounce
-    if(axisThree.homeSensor.rose()){ //if home switch activated
-        a3home = true;
-        a3end = false;
-        //Serial.println("Home Position Detected");
-        mstop = false;
-      // estop = true;
-      if(axisThree.getPosition()<-5 || axisThree.getPosition()>8){ //Is the encoder outside the acceptable homing zone?
-        //estop = true;
-        mstop=true;
-        Serial.println("Homing Sensor / Encoder Mismatch");
-        Serial.println(axisThree.getPosition());
-      }
-    }
-    //#*#*#*#*#*#* Safety Checks Complete, Allow Motion Calculation *#*#*#*#**#*#
+    if(mstop&&!estop){
+      joystick.rotate(X,axisThree,speed);
+      joystick.rotate(Z,axisFour,speed);
+      joystick.rotate(Y,axisTwo,speed);
 
-  //Manual Joystick Inputs to Motor Outputs
-    if(!estop){ //Skip all if estop
-        //joystick.rotate(axis::Y, axis3, speed);
-        joystick.rotate(axis::X, axis2, speed);
-        joystick.rotate(axis::Z, axis4, speed);
-        
-        if(abs(joystick.getPosition(Y)-joystick.getHome(Y))>joystick.getDeadzone()){
-          axisThree.rotate(speed,(-(joystick.getPosition(Y)-joystick.getHome(Y))/512.0));
-        }else{
-          axisThree.rotate(speed,0.0);
-        }
-    }else{ //Estop = true!!
-    //  axis1.overrideSpeed(0.0);
-      axis2.overrideSpeed(0.0);
-     // axis3.overrideSpeed(0.0); //Set motor speed 0
-      axis4.overrideSpeed(0.0);
-      //axis5.overrideSpeed(0.0);
+    }else{
+      Serial.println("FullStop");
     }
   }
-  
-  
-  
-  
-  
- 
+
 }
