@@ -35,11 +35,7 @@ namespace TS4{
         uint8_t faultCode; //Code indicating current [highest priority] fault
 
 
-        void updatePositions(){
-          position = analogRead(encoderPin);
-          stepPosition = motor.getPosition();
-          degrees = ((position*360.0)/1023)-180;
-        }
+
 
       public:
         Bounce homeSensor;
@@ -57,6 +53,8 @@ namespace TS4{
 
         void setPinModes();        // This could just happen during object initialization, should never change at runtime
   //     void calibrateSensors();  // Run a physical calibration routine, running the axis to its endstops, recording positions
+        void calibrateHomeSensor();
+        void updatePosition();
         double getHomeOffset();
         double getPosition();
         int getEncoderPosition();
@@ -254,22 +252,52 @@ namespace TS4{
                     
     } // end of calibrateSensors
   */
+    void RobotAxis::calibrateHomeSensor(){
+      endStop.update();
+      if(endStop.read()){
+        homeSensor.update();
+        if(!homeSensor.read()){
+          updatePosition();
+          motor.rotateAsync(homingSpeed);
+          if(position>0){
+            motor.overrideSpeed(1.0/10);
+          }else{
+            motor.overrideSpeed(-1.0/10);
+          }
+          homeSensor.update();
+          while(!homeSensor.read()){
+            homeSensor.update();
+          }
+          updatePosition();
+          double hometop = position;
+          homeSensor.update();
+          while(homeSensor.read()){
+            homeSensor.update();
+          }
+          motor.stop();
+          double homebottom = position;
+          targetPosition = (int)abs(hometop-homebottom)/2;
+        }
+      }
+      updatePosition();
+      
+    }
     double RobotAxis::getHomeOffset(){
       return ((homePosition*360.0)/1023)-180;
     }
 
     double RobotAxis::getPosition(){
-      updatePositions();
+     // updatePosition();
       return degrees;
     }
 
     int RobotAxis::getEncoderPosition(){
-      updatePositions();
+    //  updatePosition();
       return position;
     }
 
     int RobotAxis::getMotorPosition(){
-      updatePositions();
+     // updatePosition();
       return stepPosition;
     }
 
@@ -310,7 +338,7 @@ namespace TS4{
     }
 
     void RobotAxis::setHome(int width){
-      updatePositions();
+      updatePosition();
       homePosition = position;
       homeWidth = width;
     }
@@ -338,12 +366,17 @@ namespace TS4{
         targetSpeed = speed;
     }
 
+    void RobotAxis::updatePosition(){
+          position = analogRead(encoderPin);
+          stepPosition = motor.getPosition();
+          degrees = ((position*360.0)/1023)-180;
+    }
     void RobotAxis::rotate(uint16_t speed,double override){
       motor.rotateAsync(speed);
       motor.overrideSpeed(override); //Scale motor to axis 
     }
     void RobotAxis::tick(){
-      updatePositions();
+      updatePosition();
       positionController.compute();
 
 
