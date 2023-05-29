@@ -81,11 +81,12 @@ void setupMotors(); //Enable outputs, begin TS4 and set speeds
 
 
 // ************************** Variable Declarations *******************************
+int timer = 0;
+int lastTimer = 0;
 
-
-uint16_t maximumSpeed = 6000;         // Maximum motor speed      (STP+DIR)
+uint16_t maximumSpeed = 8000;         // Maximum motor speed      (STP+DIR)
 uint16_t acceleration = 25000;        // Motor Acceleration       (STP+DIR)
-uint16_t speed = 9000;                // Motor Speed              (STP+DIR)
+uint16_t speed = 3000;                // Motor Speed              (STP+DIR)
 
 uint16_t  homingRotationSpeed = 2000; // Motor speed while homing (STP+DIR)
 int32_t   homingRange;                // Total range between endstops
@@ -99,7 +100,7 @@ uint8_t   encoderPins[5];             // Array of analog pins for updating encod
 volatile bool estop = true;
 bool mstop = true;
 double Kp2 =0.022, Ki2 = 0, Kd2 = .0001; // Define PID tuning values
-double Kp3 =0.022, Ki3 = 0, Kd3 = .0001; // Define PID tuning values
+double Kp3 =.05, Ki3 = 0, Kd3 = .0001; // Define PID tuning values
 double Kp4 = 0,Ki4=0,Kd4=0;
 int targetPosition; // Define target position for PID controller
 
@@ -170,14 +171,20 @@ void setup()
   Serial.print("...");
   setupMotors(); //Enable outputs, begin TS4 and set speeds
   Serial.println("done.");
-  targetPosition = 700; //Set target position for PID axis control
+  targetPosition = 45 ; //Set target position for PID axis control
+  axisThree.setTargetPosition(targetPosition);
   joystick.invertY();
 }
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> LOOP (Run repeatedly after Setup) >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 void loop()
 {
-  axisThree.endStop.update();
+  timer = millis();
+ // Serial.print("Estop:");
+ // Serial.print(estop);
+ // Serial.print(" Mstop:");
+ // Serial.print(mstop);  
+ axisThree.endStop.update();
   //Serial.println("Next");
   if(!axisThree.endStop.read()){
     axisThree.disable();
@@ -185,22 +192,53 @@ void loop()
     mstop = true;
     Serial.println("Endstop Limit Switch Activated! Stopping Motors");
     Serial.println("Recover Robot Manually (DO NOT CRASH!)");
-    if(103>axisThree.getPosition()||axisThree.getPosition()>-106){
+    if(103>axisThree.getEncoderPosition()||axisThree.getEncoderPosition()>-106){
       Serial.println("Encoder/Endstop Position Mismatch! Check Alignment");
     }
   }
+  
+  
+
   if(!estop&&!mstop){
-    Serial.println("Free");
-    //axisThree.tick();
+   // Serial.println("Auto");
+    if(abs(axisThree.getPosition()-targetPosition)<0.2){
+      //axisThree.disable();
+
+      if(timer-lastTimer>5000){
+      Serial.print(timer-lastTimer);
+      //delay(2000);
+      Serial.print("Target Reached, new target:");
+      
+      targetPosition = random(-90,100);
+
+      Serial.println(targetPosition);
+      axisThree.setTargetPosition(targetPosition);
+      lastTimer = millis();
+      }
+
+
+    }
+    joystick.rotate(Z,axisFour,speed);
+    joystick.rotate(Y,axisTwo,speed);
+    axisThree.tick();
   }else{
     if(mstop&&!estop){
       joystick.rotate(X,axisThree,speed);
+      axisTwo.updatePosition();
+      //Serial.print(axisThree.getPosition());
+     // Serial.print(" | ");
+      Serial.println(axisTwo.getMotorPosition());
       joystick.rotate(Z,axisFour,speed);
       joystick.rotate(Y,axisTwo,speed);
-
-    }else{
-      Serial.println("FullStop");
+      axisThree.homeSensor.update();
+      if(axisThree.homeSensor.read()){
+        mstop = false;
+      } 
+  }else{
+    Serial.println("FullStop");
+     
     }
   }
-
+  
 }
+

@@ -1,3 +1,4 @@
+#pragma once
 #include "Arduino.h"   
 #include <Bounce2.h>      // Library for debouncing inputs 
 #include "teensystep4.h"  // Library for fast, asynchronous stepper motor control on Teensy4
@@ -38,6 +39,8 @@ class Robot{
     void getTargetPose();
     void setTargetPose();
     
+
+
 
 
 };//end of Robot class

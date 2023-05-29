@@ -107,7 +107,7 @@ namespace TS4{
           maximumSpeed = 8000;
           motor = Stepper(stpPin, dirPin);
           motor.setMaxSpeed(maximumSpeed);
-          motor.setAcceleration(25000);
+          motor.setAcceleration(12000);
         // TS4::begin(); //Begin TeensyStep4 Service
           homeSensor = Bounce();
           homeSensor.attach(homingPin,INPUT);
@@ -129,6 +129,7 @@ namespace TS4{
           positionController.setSampleTime(25);
           positionController.start();
           positionController.setOutputLimits(-1,1);
+          motor.setPosition(0);
 
 
     } //end of constructor
@@ -369,45 +370,40 @@ namespace TS4{
 
     void RobotAxis::setTargetPosition(int target){
         targetPosition = target;
+        setpoint = target;
     }
 
     void RobotAxis::setTargetPosition(int target,int speed){
         targetPosition = target;
         targetSpeed = speed;
     }
+    
 
     void RobotAxis::updatePosition(){
           position = analogRead(encoderPin);
           stepPosition = motor.getPosition();
           degrees = ((position*360.0)/1023)-180;
+          input = degrees;
     }
     void RobotAxis::rotate(uint16_t speed,double override){
       motor.rotateAsync(speed);
       motor.overrideSpeed(override); //Scale motor to axis 
     }
-    /*void RobotAxis::tick(){
+    void RobotAxis::tick(){
       updatePosition();
       positionController.compute();
+   //   Serial.print(output);
+    //  Serial.print("|");
+    //  Serial.print(setpoint);
+    //  Serial.print("|");
+    //  Serial.println(input);
 
-
-       if(abs(output)>0){
-      rotate(maximumSpeed,-output);
-    }else{
-      if(input==setpoint){
-        motor.stop();
-        Serial.print(((input/1023.0)*360)-180);
-        Serial.println(" Degrees");
-        if(input==setpoint){
-          int newTarget = random(220,511);
-          while(abs(newTarget-setpoint)<10){
-            newTarget = random(220,511);
-          }
-          setpoint = newTarget;
+       if(abs(output)>.01){
+         rotate(maximumSpeed,-output);
         }
-      }
-      
-      }
+        else{
+         motor.overrideSpeed(0.0);
 
-    }*/
+        }
 }
-
+}
